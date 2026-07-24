@@ -1,4 +1,4 @@
-\<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -92,7 +92,7 @@
           <div class="form-col"><label>Age Group (e.g. Ages 3+)</label><input type="text" id="p-age"></div>
           <div class="form-col"><label>Image/Emoji URL</label><input type="text" id="p-img" placeholder="URL or emoji e.g. 🧸"></div>
         </div>
-        <button type="submit" class="btn-primary">Save to Shop & Google Sheets</button>
+        <button type="submit" class="btn-primary">Save to Live Database</button>
       </form>
     </div>
     <div class="card">
@@ -139,64 +139,102 @@
 
 </div>
 
-<script>
-  // UPDATE THIS URL TO YOUR LATEST DEPLOYMENT
-  const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxOfcdCl0o3cb9CQQudJ3NOIuLI1PgFkY134aLPic5rOSSpJW2IKBLVfr0VroYVZmFy/exec";
+<!-- FIREBASE SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+  const firebaseConfig = {
+    apiKey: "AIzaSyDh0vhJsESUcipVsEsZhIvjVvz04isujz8",
+    authDomain: "mounne-bazar.firebaseapp.com",
+    projectId: "mounne-bazar",
+    storageBucket: "mounne-bazar.firebasestorage.app",
+    messagingSenderId: "64959130604",
+    appId: "1:64959130604:web:4720cf21808e86147b6ec9",
+    measurementId: "G-20G3B800GK"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  window.db = db;
+  window.collection = collection;
+  window.getDocs = getDocs;
+  window.addDoc = addDoc;
+  window.deleteDoc = deleteDoc;
+  window.doc = doc;
+</script>
+
+<script>
   function switchTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     document.querySelector(`[onclick="switchTab('${tabId}')"]`).classList.add('active');
-    refreshAllData();
   }
 
   const generateId = () => 'id_' + Math.random().toString(36).substr(2, 9);
   
-  const getProducts = () => JSON.parse(localStorage.getItem('products')) || [];
-  const saveProducts = (p) => localStorage.setItem('products', JSON.stringify(p));
+  let liveProducts = [];
+  let liveOrders = [];
 
-  // Products Submit
-  document.getElementById('productForm').addEventListener('submit', (e) => {
+  // Fetch Live Data from Firebase
+  async function loadFirebaseData() {
+    try {
+      // Get Products
+      const pSnapshot = await window.getDocs(window.collection(window.db, "products"));
+      liveProducts = [];
+      pSnapshot.forEach((doc) => {
+        let p = doc.data();
+        p.id = doc.id;
+        liveProducts.push(p);
+      });
+
+      // Get Orders
+      const oSnapshot = await window.getDocs(window.collection(window.db, "orders"));
+      liveOrders = [];
+      oSnapshot.forEach((doc) => {
+        let o = doc.data();
+        o.id = doc.id;
+        liveOrders.push(o);
+      });
+
+      refreshAllData();
+    } catch (err) {
+      console.error("Error loading data", err);
+    }
+  }
+
+  // Delay slightly to let Firebase module initialize
+  setTimeout(loadFirebaseData, 500);
+
+  // Products Submit to Firebase
+  document.getElementById('productForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const products = getProducts();
-    const newProduct = {
-      id: generateId(),
+    const btn = e.target.querySelector('button');
+    btn.textContent = "Saving...";
+    
+    await window.addDoc(window.collection(window.db, "products"), {
       name: document.getElementById('p-name').value,
       price: Number(document.getElementById('p-price').value),
       salePrice: document.getElementById('p-sale').value ? Number(document.getElementById('p-sale').value) : null,
       age: document.getElementById('p-age').value || 'All Ages',
       emoji: document.getElementById('p-img').value || '🎁'
-    };
-    
-    products.push(newProduct);
-    saveProducts(products);
-    e.target.reset();
-    refreshAllData();
-
-    // Send to Google Sheets
-    fetch(GOOGLE_SHEET_WEB_APP_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        type: 'product',
-        id: newProduct.id,
-        name: newProduct.name,
-        price: newProduct.price,
-        salePrice: newProduct.salePrice || "None",
-        age: newProduct.age,
-        image: newProduct.emoji
-      })
     });
+    
+    e.target.reset();
+    btn.textContent = "Save to Live Database";
+    loadFirebaseData();
   });
 
-  function deleteProduct(id) {
-    saveProducts(getProducts().filter(p => p.id !== id));
-    refreshAllData();
+  async function deleteProduct(id) {
+    if(confirm("Delete this product?")) {
+      await window.deleteDoc(window.doc(window.db, "products", id));
+      loadFirebaseData();
+    }
   }
 
-  // Bundles
+  // Bundles (kept in localStorage for simplicity for now)
   const getBundles = () => JSON.parse(localStorage.getItem('bundles')) || [];
   const saveBundles = (b) => localStorage.setItem('bundles', JSON.stringify(b));
 
@@ -217,12 +255,12 @@
     refreshAllData();
   }
 
-  // Orders
-  const getOrders = () => JSON.parse(localStorage.getItem('shopOrders')) || [];
-  function deleteOrder(index) {
-    let orders = getOrders(); orders.splice(index, 1);
-    localStorage.setItem('shopOrders', JSON.stringify(orders));
-    refreshAllData();
+  // Delete Order from Firebase
+  async function deleteOrder(id) {
+    if(confirm("Clear this order?")) {
+      await window.deleteDoc(window.doc(window.db, "orders", id));
+      loadFirebaseData();
+    }
   }
 
   // ROBUST SEARCH FUNCTION
@@ -231,9 +269,7 @@
     const trs = document.getElementById("ordersTableBody").getElementsByTagName("tr");
     
     for (let i = 0; i < trs.length; i++) {
-      // Ignore empty state row
       if(trs[i].getElementsByTagName("td").length < 2) continue;
-      
       const rowText = trs[i].textContent || trs[i].innerText;
       if (rowText.toUpperCase().indexOf(input) > -1) {
         trs[i].style.display = "";
@@ -245,9 +281,8 @@
 
   function refreshAllData() {
     const pTbody = document.getElementById('productsTableBody');
-    const products = getProducts();
-    if(products.length === 0) pTbody.innerHTML = `<tr><td colspan="4" class="empty-state">No products added yet.</td></tr>`;
-    else pTbody.innerHTML = products.map(p => `
+    if(liveProducts.length === 0) pTbody.innerHTML = `<tr><td colspan="4" class="empty-state">No products added yet.</td></tr>`;
+    else pTbody.innerHTML = liveProducts.map(p => `
       <tr>
         <td style="font-weight:600;">${p.name}</td><td>${p.age || 'All Ages'}</td>
         <td>${p.salePrice ? `<del style="color:#aaa; font-size:0.8rem;">${p.price} EGP</del> <br> <span style="color:#2EC4B6;">${p.salePrice} EGP</span>` : `${p.price} EGP`}</td>
@@ -256,7 +291,7 @@
     `).join('');
 
     const bSelect = document.getElementById('b-products');
-    bSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.name} (${p.salePrice || p.price} EGP)</option>`).join('');
+    bSelect.innerHTML = liveProducts.map(p => `<option value="${p.id}">${p.name} (${p.salePrice || p.price} EGP)</option>`).join('');
 
     const bTbody = document.getElementById('bundlesTableBody');
     const bundles = getBundles();
@@ -264,10 +299,8 @@
     else bTbody.innerHTML = bundles.map(b => `<tr><td style="font-weight:600;">${b.name}</td><td>${b.items}</td><td>${b.price} EGP</td><td><button class="btn-danger" onclick="deleteBundle('${b.id}')">Remove</button></td></tr>`).join('');
 
     const oTbody = document.getElementById('ordersTableBody');
-    const orders = getOrders();
-    if(orders.length === 0) oTbody.innerHTML = `<tr><td colspan="7" class="empty-state">No live orders.</td></tr>`;
-    else oTbody.innerHTML = orders.slice().reverse().map((o, index) => {
-      const originalIndex = orders.length - 1 - index;
+    if(liveOrders.length === 0) oTbody.innerHTML = `<tr><td colspan="7" class="empty-state">No live orders.</td></tr>`;
+    else oTbody.innerHTML = liveOrders.slice().reverse().map((o) => {
       return `
         <tr>
           <td style="font-weight:800; color:var(--sidebar-active);">${o.orderId || 'N/A'}</td>
@@ -276,7 +309,7 @@
           <td>${o.phone}<br><span style="color:var(--text-muted); font-size:0.85rem">${o.city} - ${o.address}</span></td>
           <td>${o.items}</td>
           <td style="font-weight:800;">${o.total}</td>
-          <td><button class="btn-danger" onclick="deleteOrder(${originalIndex})">Clear</button></td>
+          <td><button class="btn-danger" onclick="deleteOrder('${o.id}')">Clear</button></td>
         </tr>
       `;
     }).join('');
