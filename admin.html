@@ -1,0 +1,288 @@
+\<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Dashboard - Mounne Bazar</title>
+<style>
+  :root {
+    --sidebar-bg: #151623;
+    --sidebar-active: #665DF5;
+    --bg-color: #F8F9FA;
+    --text-main: #1E1E2D;
+    --text-muted: #A1A5B7;
+    --border-color: #EFF2F5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg-color);
+    color: var(--text-main);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  .sidebar { width: 260px; background: var(--sidebar-bg); color: white; display: flex; flex-direction: column; }
+  .brand { padding: 24px; font-size: 1.5rem; font-weight: 800; letter-spacing: 0.5px; }
+  .brand span { color: var(--sidebar-active); }
+  
+  .nav-menu { flex: 1; display: flex; flex-direction: column; padding-top: 10px; }
+  .nav-btn {
+    background: none; border: none; color: #8A92A6;
+    padding: 18px 24px; text-align: left; font-size: 1rem;
+    font-weight: 600; cursor: pointer; transition: 0.2s;
+  }
+  .nav-btn:hover { color: white; background: rgba(255,255,255,0.05); }
+  .nav-btn.active { background: var(--sidebar-active); color: white; }
+
+  .main-content { flex: 1; padding: 40px; overflow-y: auto; }
+  .tab-content { display: none; animation: fadeIn 0.3s ease; }
+  .tab-content.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  
+  h1 { font-size: 2rem; margin-bottom: 30px; }
+  .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 24px; }
+  .card h3 { margin-bottom: 20px; font-size: 1.1rem; }
+  
+  .form-row { display: flex; gap: 20px; margin-bottom: 16px; }
+  .form-col { flex: 1; }
+  label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--text-muted); }
+  input, select, textarea { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-family: inherit; font-size: 0.95rem; }
+  input:focus, select:focus { outline: none; border-color: var(--sidebar-active); }
+  select[multiple] { height: 120px; }
+  
+  .btn-primary { background: var(--sidebar-active); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.2s; }
+  .btn-primary:hover { background: #554de0; }
+  .btn-danger { background: #FF5C5C; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+  .btn-danger:hover { background: #E04848; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 16px 12px; border-bottom: 1px solid var(--border-color); }
+  th { font-size: 0.85rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+  td { font-size: 0.95rem; vertical-align: top; }
+  
+  .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
+  .search-input { width: 100%; max-width: 400px; margin-bottom: 20px; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border-color); }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="brand">Mounne<span>Admin</span></div>
+  <div class="nav-menu">
+    <button class="nav-btn active" onclick="switchTab('tab-products')">Products & Offers</button>
+    <button class="nav-btn" onclick="switchTab('tab-bundles')">Bundles</button>
+    <button class="nav-btn" onclick="switchTab('tab-orders')">Live Orders</button>
+  </div>
+</div>
+
+<div class="main-content">
+  
+  <div id="tab-products" class="tab-content active">
+    <h1>Products</h1>
+    <div class="card">
+      <h3>Add New Product</h3>
+      <form id="productForm">
+        <div class="form-row">
+          <div class="form-col"><label>Product Name</label><input type="text" id="p-name" required></div>
+          <div class="form-col"><label>Regular Price (EGP)</label><input type="number" id="p-price" required></div>
+          <div class="form-col"><label>Sale Price (Optional)</label><input type="number" id="p-sale"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-col"><label>Age Group (e.g. Ages 3+)</label><input type="text" id="p-age"></div>
+          <div class="form-col"><label>Image/Emoji URL</label><input type="text" id="p-img" placeholder="URL or emoji e.g. 🧸"></div>
+        </div>
+        <button type="submit" class="btn-primary">Save to Shop & Google Sheets</button>
+      </form>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Name</th><th>Age</th><th>Price / Offer</th><th>Action</th></tr></thead>
+        <tbody id="productsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-bundles" class="tab-content">
+    <h1>Product Bundles</h1>
+    <div class="card">
+      <h3>Create a Bundle</h3>
+      <form id="bundleForm">
+        <div class="form-row">
+          <div class="form-col"><label>Bundle Name</label><input type="text" id="b-name" required></div>
+          <div class="form-col"><label>Bundle Price (EGP)</label><input type="number" id="b-price" required></div>
+        </div>
+        <div class="form-row">
+          <div class="form-col"><label>Select Products (Hold Ctrl/Cmd)</label><select id="b-products" multiple required></select></div>
+        </div>
+        <button type="submit" class="btn-primary">Create Bundle</button>
+      </form>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr><th>Bundle Name</th><th>Items Included</th><th>Price</th><th>Action</th></tr></thead>
+        <tbody id="bundlesTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-orders" class="tab-content">
+    <h1>Live Orders</h1>
+    <div class="card">
+      <input type="text" id="searchOrderId" class="search-input" placeholder="🔍 Search Orders (ID, Name, Phone...)" onkeyup="searchOrders()">
+      <table>
+        <thead><tr><th>Order ID</th><th>Date</th><th>Customer</th><th>Contact / City</th><th>Order Summary</th><th>Total</th><th>Action</th></tr></thead>
+        <tbody id="ordersTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // UPDATE THIS URL TO YOUR LATEST DEPLOYMENT
+  const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxOfcdCl0o3cb9CQQudJ3NOIuLI1PgFkY134aLPic5rOSSpJW2IKBLVfr0VroYVZmFy/exec";
+
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    document.querySelector(`[onclick="switchTab('${tabId}')"]`).classList.add('active');
+    refreshAllData();
+  }
+
+  const generateId = () => 'id_' + Math.random().toString(36).substr(2, 9);
+  
+  const getProducts = () => JSON.parse(localStorage.getItem('products')) || [];
+  const saveProducts = (p) => localStorage.setItem('products', JSON.stringify(p));
+
+  // Products Submit
+  document.getElementById('productForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const products = getProducts();
+    const newProduct = {
+      id: generateId(),
+      name: document.getElementById('p-name').value,
+      price: Number(document.getElementById('p-price').value),
+      salePrice: document.getElementById('p-sale').value ? Number(document.getElementById('p-sale').value) : null,
+      age: document.getElementById('p-age').value || 'All Ages',
+      emoji: document.getElementById('p-img').value || '🎁'
+    };
+    
+    products.push(newProduct);
+    saveProducts(products);
+    e.target.reset();
+    refreshAllData();
+
+    // Send to Google Sheets
+    fetch(GOOGLE_SHEET_WEB_APP_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        type: 'product',
+        id: newProduct.id,
+        name: newProduct.name,
+        price: newProduct.price,
+        salePrice: newProduct.salePrice || "None",
+        age: newProduct.age,
+        image: newProduct.emoji
+      })
+    });
+  });
+
+  function deleteProduct(id) {
+    saveProducts(getProducts().filter(p => p.id !== id));
+    refreshAllData();
+  }
+
+  // Bundles
+  const getBundles = () => JSON.parse(localStorage.getItem('bundles')) || [];
+  const saveBundles = (b) => localStorage.setItem('bundles', JSON.stringify(b));
+
+  document.getElementById('bundleForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const select = document.getElementById('b-products');
+    const selectedItems = Array.from(select.selectedOptions).map(opt => opt.text);
+    const bundles = getBundles();
+    bundles.push({
+      id: generateId(), name: document.getElementById('b-name').value,
+      price: document.getElementById('b-price').value, items: selectedItems.join(', ')
+    });
+    saveBundles(bundles); e.target.reset(); refreshAllData();
+  });
+
+  function deleteBundle(id) {
+    saveBundles(getBundles().filter(b => b.id !== id));
+    refreshAllData();
+  }
+
+  // Orders
+  const getOrders = () => JSON.parse(localStorage.getItem('shopOrders')) || [];
+  function deleteOrder(index) {
+    let orders = getOrders(); orders.splice(index, 1);
+    localStorage.setItem('shopOrders', JSON.stringify(orders));
+    refreshAllData();
+  }
+
+  // ROBUST SEARCH FUNCTION
+  function searchOrders() {
+    const input = document.getElementById("searchOrderId").value.toUpperCase();
+    const trs = document.getElementById("ordersTableBody").getElementsByTagName("tr");
+    
+    for (let i = 0; i < trs.length; i++) {
+      // Ignore empty state row
+      if(trs[i].getElementsByTagName("td").length < 2) continue;
+      
+      const rowText = trs[i].textContent || trs[i].innerText;
+      if (rowText.toUpperCase().indexOf(input) > -1) {
+        trs[i].style.display = "";
+      } else {
+        trs[i].style.display = "none";
+      }
+    }
+  }
+
+  function refreshAllData() {
+    const pTbody = document.getElementById('productsTableBody');
+    const products = getProducts();
+    if(products.length === 0) pTbody.innerHTML = `<tr><td colspan="4" class="empty-state">No products added yet.</td></tr>`;
+    else pTbody.innerHTML = products.map(p => `
+      <tr>
+        <td style="font-weight:600;">${p.name}</td><td>${p.age || 'All Ages'}</td>
+        <td>${p.salePrice ? `<del style="color:#aaa; font-size:0.8rem;">${p.price} EGP</del> <br> <span style="color:#2EC4B6;">${p.salePrice} EGP</span>` : `${p.price} EGP`}</td>
+        <td><button class="btn-danger" onclick="deleteProduct('${p.id}')">Remove</button></td>
+      </tr>
+    `).join('');
+
+    const bSelect = document.getElementById('b-products');
+    bSelect.innerHTML = products.map(p => `<option value="${p.id}">${p.name} (${p.salePrice || p.price} EGP)</option>`).join('');
+
+    const bTbody = document.getElementById('bundlesTableBody');
+    const bundles = getBundles();
+    if(bundles.length === 0) bTbody.innerHTML = `<tr><td colspan="4" class="empty-state">No bundles created.</td></tr>`;
+    else bTbody.innerHTML = bundles.map(b => `<tr><td style="font-weight:600;">${b.name}</td><td>${b.items}</td><td>${b.price} EGP</td><td><button class="btn-danger" onclick="deleteBundle('${b.id}')">Remove</button></td></tr>`).join('');
+
+    const oTbody = document.getElementById('ordersTableBody');
+    const orders = getOrders();
+    if(orders.length === 0) oTbody.innerHTML = `<tr><td colspan="7" class="empty-state">No live orders.</td></tr>`;
+    else oTbody.innerHTML = orders.slice().reverse().map((o, index) => {
+      const originalIndex = orders.length - 1 - index;
+      return `
+        <tr>
+          <td style="font-weight:800; color:var(--sidebar-active);">${o.orderId || 'N/A'}</td>
+          <td style="color:var(--text-muted);">${o.timestamp || ''}</td>
+          <td style="font-weight:800;">${o.name}</td>
+          <td>${o.phone}<br><span style="color:var(--text-muted); font-size:0.85rem">${o.city} - ${o.address}</span></td>
+          <td>${o.items}</td>
+          <td style="font-weight:800;">${o.total}</td>
+          <td><button class="btn-danger" onclick="deleteOrder(${originalIndex})">Clear</button></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  refreshAllData();
+</script>
+</body>
+</html>
